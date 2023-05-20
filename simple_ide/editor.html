@@ -99,7 +99,29 @@ const config = {
         operators: ["relative", "absolute", "mouse", "image", "left", "right", "middle", "up", "down"],
         comments: ["#"]
     },
-    completions: ["key", "press", "hold", "release", "move", "click", "scroll", "sleep", "loop", "endloop", "if", "endif", "for", "while", "exit"]
+    completions: [
+  "key string",
+  "press key_name",
+  "hold key_name",
+  "release key_name",
+  "move relative dx dy",
+  "move absolute x y",
+  "move image image_path",
+  "click left/right/middle",
+  "click left/right/middle N",
+  "click left/right/middle hold",
+  "click left/right/middle release",
+  "click left/right/middle hold release",
+  "scroll up/down",
+  "scroll up/down amount",
+  "sleep N",
+  "loop N",
+  "endloop",
+  "if image file_path",
+  "if mouse px py",
+  "endif",
+  "exit"
+    ]
 };
 
 const renderLayer = document.getElementById('renderLayer');
@@ -109,6 +131,16 @@ inputLayer.addEventListener('input', () => {
     const code = inputLayer.innerHTML.replaceAll('</div>', '').replaceAll('<br>', '').replaceAll('<div>', '\n').replace('&nbsp;', ' ');
     const highlightedCode = highlightSyntax(code, config.syntax);
     renderLayer.innerHTML = highlightedCode;
+
+    // for show completion
+    const code2 = inputLayer.textContent;
+    const cursorPosition = getCursorPosition();
+    const currentWord = getCurrentWord(code2, cursorPosition);
+    const filteredCompletions = config.completions.filter(completion => completion.startsWith(currentWord));
+
+    if (filteredCompletions.length > 1) {
+      showCompletionMenu(filteredCompletions);
+    }
 });
 
 inputLayer.addEventListener('keydown', (event) => {
@@ -120,15 +152,6 @@ inputLayer.addEventListener('keydown', (event) => {
     inputLayer.textContent = completedCode;
     renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
     setCursorPosition(cursorPosition + 1);
-  } else if (event.key === 'Space') {
-    const code = inputLayer.textContent;
-    const cursorPosition = getCursorPosition();
-    const currentWord = getCurrentWord(code, cursorPosition);
-    const filteredCompletions = config.completions.filter(completion => completion.startsWith(currentWord));
-
-    if (filteredCompletions.length > 1) {
-      showCompletionMenu(filteredCompletions);
-    }
   }
 });
 
@@ -197,9 +220,17 @@ function codeCompletion(code, cursorPosition, completionsConfig) {
   return code;
 }
 
+let menuContainer = null;
+
 function showCompletionMenu(completions) {
-  const menuContainer = document.createElement('div');
-  menuContainer.classList.add('menu-container');
+  if (menuContainer === null) {
+    menuContainer = document.createElement('div');
+    menuContainer.classList.add('menu-container');
+    const editorContainer = document.querySelector('.editor-container');
+    editorContainer.appendChild(menuContainer);
+  }
+
+  menuContainer.innerHTML = '';
 
   for (const completion of completions) {
     const menuItem = document.createElement('div');
@@ -215,19 +246,18 @@ function showCompletionMenu(completions) {
       const completedCode = currentCode.slice(0, cursorPosition) + remaining + currentCode.slice(cursorPosition);
       inputLayer.textContent = completedCode;
       renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
-      menuContainer.remove();
+      menuContainer.style.display = 'none';
     });
 
     menuContainer.appendChild(menuItem);
   }
 
-  const editorContainer = document.querySelector('.editor-container');
-  editorContainer.appendChild(menuContainer);
-
   const inputRect = inputLayer.getBoundingClientRect();
   menuContainer.style.top = inputRect.bottom + 'px';
   menuContainer.style.left = inputRect.left + 'px';
+  menuContainer.style.display = 'block';
 }
+
 
 function getCurrentWord(code, cursorPosition) {
   const beforeCursor = code.slice(0, cursorPosition);
@@ -245,6 +275,10 @@ function getCursorPosition() {
 }
 
 function setCursorPosition(position) {
+    if (inputLayer.textContent.trim().length === 0) {
+        return;
+    }
+
     const range = document.createRange();
     const selection = window.getSelection();
     range.setStart(inputLayer.firstChild, position);
