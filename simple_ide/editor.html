@@ -59,6 +59,23 @@
             color: green;
             font-style: italic;
         }
+
+        .menu-container {
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ccc;
+        padding: 5px;
+        z-index: 1;
+        }
+
+        .menu-item {
+        cursor: pointer;
+        padding: 5px;
+        }
+
+        .menu-item:hover {
+        background-color: #eee;
+        }
     </style>
 </head>
 <body>
@@ -89,21 +106,30 @@ const renderLayer = document.getElementById('renderLayer');
 const inputLayer = document.getElementById('inputLayer');
 
 inputLayer.addEventListener('input', () => {
-    const code = inputLayer.innerHTML.replaceAll('</div>', '').replaceAll('<br>', '').replaceAll('<div>', '\n').replace('&nbsp;', '');
+    const code = inputLayer.innerHTML.replaceAll('</div>', '').replaceAll('<br>', '').replaceAll('<div>', '\n').replace('&nbsp;', ' ');
     const highlightedCode = highlightSyntax(code, config.syntax);
     renderLayer.innerHTML = highlightedCode;
 });
 
 inputLayer.addEventListener('keydown', (event) => {
-    if (event.key === 'Tab') {
-        event.preventDefault();
-        const code = inputLayer.textContent;
-        const cursorPosition = getCursorPosition();
-        const completedCode = codeCompletion(code, cursorPosition, config.completions);
-        inputLayer.textContent = completedCode;
-        renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
-        setCursorPosition(cursorPosition + 1);
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    const code = inputLayer.textContent;
+    const cursorPosition = getCursorPosition();
+    const completedCode = codeCompletion(code, cursorPosition, config.completions);
+    inputLayer.textContent = completedCode;
+    renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
+    setCursorPosition(cursorPosition + 1);
+  } else if (event.key === 'Space') {
+    const code = inputLayer.textContent;
+    const cursorPosition = getCursorPosition();
+    const currentWord = getCurrentWord(code, cursorPosition);
+    const filteredCompletions = config.completions.filter(completion => completion.startsWith(currentWord));
+
+    if (filteredCompletions.length > 1) {
+      showCompletionMenu(filteredCompletions);
     }
+  }
 });
 
 function saveCode() {
@@ -158,19 +184,55 @@ function escapeRegex(string) {
 }
 
 function codeCompletion(code, cursorPosition, completionsConfig) {
-    const currentWord = getCurrentWord(code, cursorPosition);
-    const filteredCompletions = completionsConfig.filter(completion => completion.startsWith(currentWord));
-    if (filteredCompletions.length === 1) {
-        const remaining = filteredCompletions[0].slice(currentWord.length);
-        return code.slice(0, cursorPosition) + remaining + code.slice(cursorPosition);
-    }
-    return code;
+  const currentWord = getCurrentWord(code, cursorPosition);
+  const filteredCompletions = completionsConfig.filter(completion => completion.startsWith(currentWord));
+
+  if (filteredCompletions.length === 1) {
+    const remaining = filteredCompletions[0].slice(currentWord.length);
+    return code.slice(0, cursorPosition) + remaining + code.slice(cursorPosition);
+  } else if (filteredCompletions.length > 1) {
+    showCompletionMenu(filteredCompletions);
+  }
+
+  return code;
+}
+
+function showCompletionMenu(completions) {
+  const menuContainer = document.createElement('div');
+  menuContainer.classList.add('menu-container');
+
+  for (const completion of completions) {
+    const menuItem = document.createElement('div');
+    menuItem.classList.add('menu-item');
+    menuItem.textContent = completion;
+
+    menuItem.addEventListener('click', () => {
+      const currentCode = inputLayer.textContent;
+      const cursorPosition = getCursorPosition();
+      const currentWord = getCurrentWord(currentCode, cursorPosition);
+      const remaining = completion.slice(currentWord.length);
+
+      const completedCode = currentCode.slice(0, cursorPosition) + remaining + currentCode.slice(cursorPosition);
+      inputLayer.textContent = completedCode;
+      renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
+      menuContainer.remove();
+    });
+
+    menuContainer.appendChild(menuItem);
+  }
+
+  const editorContainer = document.querySelector('.editor-container');
+  editorContainer.appendChild(menuContainer);
+
+  const inputRect = inputLayer.getBoundingClientRect();
+  menuContainer.style.top = inputRect.bottom + 'px';
+  menuContainer.style.left = inputRect.left + 'px';
 }
 
 function getCurrentWord(code, cursorPosition) {
-    const beforeCursor = code.slice(0, cursorPosition);
-    const matches = beforeCursor.match(/[\w]+$/);
-    return matches ? matches[0] : '';
+  const beforeCursor = code.slice(0, cursorPosition);
+  const matches = beforeCursor.match(/[\w]+$/);
+  return matches ? matches[0] : '';
 }
 
 function getCursorPosition() {
