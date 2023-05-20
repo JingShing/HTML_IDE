@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple IDE</title>
+    <title>Auto Tool IDE</title>
     <style>
+        button {
+            background-color: black;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px;
+        }
         .editor-container {
             position: relative;
             width: 100%;
@@ -15,26 +21,31 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            white-space: pre-wrap;
+            height: 200px;
+            width: 80%;
+            max-width: 400px;
+            font-size: 14px;
+            white-space: pre;
             overflow: auto;
             pointer-events: none;
+            padding: 5px;
         }
 
         .input-layer {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            height: 200px;
+            width: 80%;
+            max-width: 400px;
             border: none;
             outline: none;
             resize: none;
             font-family: monospace;
             font-size: 14px;
-            opacity: 0;
-            caret-color: transparent;
+            overflow: auto;
+            padding: 5px;
+            /* white-space: pre-wrap; */
         }
 
         .keyword {
@@ -53,13 +64,16 @@
     </style>
 </head>
 <body>
+    This IDE is made for my <a href="https://github.com/JingShing/Auto_mouse_key_tool_py">Auto Tool Py</a>
+    <br>
+    More instruction and manual can see on <a href="https://github.com/JingShing/Auto_mouse_key_tool_py">Github</a>
     <div class="editor-container">
+        <div id="inputLayer" class="input-layer" contenteditable="true" placeholder="在此輸入代碼"></div>
         <div id="renderLayer" class="render-layer"></div>
-        <textarea id="inputLayer" class="input-layer" placeholder="在此輸入代碼"></textarea>
     </div>
-    <button onclick="saveCode()">save</button>
-    <button onclick="loadCode()">load</button>
-    <button onclick="clearCode()">reset</button>
+    <button onclick="saveCode()">保存</button>
+    <button onclick="loadCode()">加载</button>
+    <button onclick="clearCode()">重置</button>
 </body>
 </html>
 
@@ -70,14 +84,15 @@ const config = {
         operators: ["relative", "absolute", "mouse", "image", "left", "right", "middle", "up", "down"],
         comments: ["#"]
     },
-    completions: ["function", "variable", "constant"]
+    completions: ["key", "press", "hold", "release", "move", "click", "scroll", "sleep", "loop", "endloop", "if", "endif", "for", "while", "exit"]
 };
 
 const renderLayer = document.getElementById('renderLayer');
 const inputLayer = document.getElementById('inputLayer');
 
 inputLayer.addEventListener('input', () => {
-    const code = inputLayer.value;
+    const code = inputLayer.innerHTML.replaceAll('</div>', '').replaceAll('<div>', '\n');
+    console.log(code)
     const highlightedCode = highlightSyntax(code, config.syntax);
     renderLayer.innerHTML = highlightedCode;
 });
@@ -85,17 +100,17 @@ inputLayer.addEventListener('input', () => {
 inputLayer.addEventListener('keydown', (event) => {
     if (event.key === 'Tab') {
         event.preventDefault();
-        const code = inputLayer.value;
-        const cursorPosition = inputLayer.selectionStart;
+        const code = inputLayer.textContent;
+        const cursorPosition = getCursorPosition();
         const completedCode = codeCompletion(code, cursorPosition, config.completions);
-        inputLayer.value = completedCode;
+        inputLayer.textContent = completedCode;
         renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
-        inputLayer.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+        setCursorPosition(cursorPosition + 1);
     }
 });
 
 function saveCode() {
-    const code = inputLayer.value;
+    const code = inputLayer.textContent;
     const blob = new Blob([code], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -113,7 +128,7 @@ function loadCode() {
         const reader = new FileReader();
         reader.onload = (event) => {
             const fileContent = event.target.result;
-            inputLayer.value = fileContent;
+            inputLayer.textContent = fileContent;
             renderLayer.innerHTML = highlightSyntax(fileContent, config.syntax);
         };
         reader.readAsText(file);
@@ -122,7 +137,7 @@ function loadCode() {
 }
 
 function clearCode() {
-    inputLayer.value = '';
+    inputLayer.textContent = '';
     renderLayer.innerHTML = '';
 }
 
@@ -130,10 +145,10 @@ function highlightSyntax(code, syntaxConfig) {
     let highlightedCode = code;
     const keywordsRegex = new RegExp(`\\b(${syntaxConfig.keywords.map(keyword => escapeRegex(keyword)).join('|')})\\b`, 'g');
     highlightedCode = highlightedCode.replace(keywordsRegex, '<span class="keyword">$1</span>');
-
+    
     const operatorsRegex = new RegExp(`\\b(${syntaxConfig.operators.map(operator => escapeRegex(operator)).join('|')})\\b`, 'g');
     highlightedCode = highlightedCode.replace(operatorsRegex, '<span class="operator">$1</span>');
-
+    
     const commentsRegex = new RegExp(`(${syntaxConfig.comments.map(comment => escapeRegex(comment)).join('|')}).*`, 'g');
     highlightedCode = highlightedCode.replace(commentsRegex, '<span class="comment">$1</span>');
 
@@ -158,5 +173,24 @@ function getCurrentWord(code, cursorPosition) {
     const beforeCursor = code.slice(0, cursorPosition);
     const matches = beforeCursor.match(/[\w]+$/);
     return matches ? matches[0] : '';
+}
+
+function getCursorPosition() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        return range.startOffset;
+    }
+    return 0;
+}
+
+function setCursorPosition(position) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(inputLayer.firstChild, position);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    inputLayer.focus();
 }
 </script>
