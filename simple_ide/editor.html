@@ -66,7 +66,7 @@
     <br>
     More instruction and manual can see on <a href="https://github.com/JingShing/Auto_mouse_key_tool_py">Github</a>
     <div class="editor-container">
-        <div id="inputLayer" class="input-layer" contenteditable="true" placeholder="在此輸入代碼"></div>
+        <div id="inputLayer" class="input-layer" contenteditable="true"></div>
         <div id="renderLayer" class="render-layer"></div>
     </div>
     <button onclick="saveCode()">Save</button>
@@ -90,7 +90,6 @@ const inputLayer = document.getElementById('inputLayer');
 
 inputLayer.addEventListener('input', () => {
     const code = inputLayer.innerHTML.replaceAll('</div>', '').replaceAll('<br>', '').replaceAll('<div>', '\n').replace('&nbsp;', '');
-    console.log(code);
     const highlightedCode = highlightSyntax(code, config.syntax);
     renderLayer.innerHTML = highlightedCode;
 });
