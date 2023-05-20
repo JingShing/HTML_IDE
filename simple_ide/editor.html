@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple IDE</title>
+    <style>
+        .editor-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            font-family: monospace;
+        }
+
+        .render-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            white-space: pre-wrap;
+            overflow: auto;
+            pointer-events: none;
+        }
+
+        .input-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: monospace;
+            font-size: 14px;
+            opacity: 0;
+            caret-color: transparent;
+        }
+
+        .keyword {
+            color: blue;
+            font-weight: bold;
+        }
+        
+        .operator {
+            color: purple;
+        }
+        
+        .comment {
+            color: green;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <div id="renderLayer" class="render-layer"></div>
+        <textarea id="inputLayer" class="input-layer" placeholder="在此輸入代碼"></textarea>
+    </div>
+    <button onclick="saveCode()">save</button>
+    <button onclick="loadCode()">load</button>
+    <button onclick="clearCode()">reset</button>
+</body>
+</html>
+
+<script>
+const config = {
+    syntax: {
+        keywords: ["key", "press", "hold", "release", "move", "click", "scroll", "sleep", "loop", "endloop", "if", "endif", "for", "while", "exit"],
+        operators: ["relative", "absolute", "mouse", "image", "left", "right", "middle", "up", "down"],
+        comments: ["#"]
+    },
+    completions: ["function", "variable", "constant"]
+};
+
+const renderLayer = document.getElementById('renderLayer');
+const inputLayer = document.getElementById('inputLayer');
+
+inputLayer.addEventListener('input', () => {
+    const code = inputLayer.value;
+    const highlightedCode = highlightSyntax(code, config.syntax);
+    renderLayer.innerHTML = highlightedCode;
+});
+
+inputLayer.addEventListener('keydown', (event) => {
+    if (event.key === 'Tab') {
+        event.preventDefault();
+        const code = inputLayer.value;
+        const cursorPosition = inputLayer.selectionStart;
+        const completedCode = codeCompletion(code, cursorPosition, config.completions);
+        inputLayer.value = completedCode;
+        renderLayer.innerHTML = highlightSyntax(completedCode, config.syntax);
+        inputLayer.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+    }
+});
+
+function saveCode() {
+    const code = inputLayer.value;
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'code.txt';
+    link.click();
+}
+
+function loadCode() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt';
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const fileContent = event.target.result;
+            inputLayer.value = fileContent;
+            renderLayer.innerHTML = highlightSyntax(fileContent, config.syntax);
+        };
+        reader.readAsText(file);
+    });
+    fileInput.click();
+}
+
+function clearCode() {
+    inputLayer.value = '';
+    renderLayer.innerHTML = '';
+}
+
+function highlightSyntax(code, syntaxConfig) {
+    let highlightedCode = code;
+    const keywordsRegex = new RegExp(`\\b(${syntaxConfig.keywords.map(keyword => escapeRegex(keyword)).join('|')})\\b`, 'g');
+    highlightedCode = highlightedCode.replace(keywordsRegex, '<span class="keyword">$1</span>');
+
+    const operatorsRegex = new RegExp(`\\b(${syntaxConfig.operators.map(operator => escapeRegex(operator)).join('|')})\\b`, 'g');
+    highlightedCode = highlightedCode.replace(operatorsRegex, '<span class="operator">$1</span>');
+
+    const commentsRegex = new RegExp(`(${syntaxConfig.comments.map(comment => escapeRegex(comment)).join('|')}).*`, 'g');
+    highlightedCode = highlightedCode.replace(commentsRegex, '<span class="comment">$1</span>');
+
+    return highlightedCode;
+}
+
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function codeCompletion(code, cursorPosition, completionsConfig) {
+    const currentWord = getCurrentWord(code, cursorPosition);
+    const filteredCompletions = completionsConfig.filter(completion => completion.startsWith(currentWord));
+    if (filteredCompletions.length === 1) {
+        const remaining = filteredCompletions[0].slice(currentWord.length);
+        return code.slice(0, cursorPosition) + remaining + code.slice(cursorPosition);
+    }
+    return code;
+}
+
+function getCurrentWord(code, cursorPosition) {
+    const beforeCursor = code.slice(0, cursorPosition);
+    const matches = beforeCursor.match(/[\w]+$/);
+    return matches ? matches[0] : '';
+}
+</script>
